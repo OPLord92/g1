@@ -43,7 +43,208 @@
 
         table { width:100%; margin-top:20px; border-collapse:collapse; table-layout: fixed; }
         table, th, td { border:1px solid #ddd; }
-  
+        th, td { padding:8px; text-align:center; word-wrap:break-word; }
+        th { background-color:#f2f2f2; }
+
+        .deleted-text { color:#888; font-style:italic; text-align:center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>UOB Outstanding Payment</h2>
+
+    <div class="outstanding">
+        Outstanding: RM <span id="balance">3150.00</span>
+    </div>
+
+    <input type="number" id="paymentAmount" placeholder="Enter Payment Amount" step="0.01">
+    <button class="make-payment-btn" onclick="makePayment()">Make Payment</button>
+    <button class="reset-btn" onclick="resetAll()">Reset</button>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Payment (RM)</th>
+                <th>Outstanding After Payment (RM)</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="historyTable"></tbody>
+    </table>
+</div>
+
+<script>
+const DAILY_INTEREST = 1.56;
+const ORIGINAL_OUTSTANDING = 3150.00;
+
+let outstanding = ORIGINAL_OUTSTANDING;
+let lastInterestDate = null;
+
+// Load data
+function loadData() {
+    const savedData = JSON.parse(localStorage.getItem("uobData"));
+    if (savedData) {
+        outstanding = savedData.outstanding;
+        lastInterestDate = new Date(savedData.lastInterestDate);
+        document.getElementById("balance").innerText = outstanding.toFixed(2);
+
+        savedData.history.forEach(item => {
+            addRow(item.date, item.payment, item.outstanding, false);
+        });
+    }
+}
+
+// Save data (ONLY active rows)
+function saveData() {
+    const table = document.getElementById("historyTable");
+    const history = [];
+
+    for (let i = 0; i < table.rows.length; i++) {
+        const r = table.rows[i];
+
+        // Skip temporary deleted rows
+        if (r.dataset.tempDeleted === "true") continue;
+
+        history.push({
+            date: r.dataset.date,
+            payment: parseFloat(r.dataset.payment),
+            outstanding: parseFloat(r.dataset.outstanding)
+        });
+    }
+
+    localStorage.setItem("uobData", JSON.stringify({
+        outstanding: outstanding,
+        lastInterestDate: lastInterestDate,
+        history: history
+    }));
+}
+
+// Interest calculation
+function applyInterest() {
+    const today = new Date();
+    if (!lastInterestDate) lastInterestDate = today;
+
+    const diffDays = Math.floor((today - new Date(lastInterestDate)) / (1000*60*60*24));
+
+    if (diffDays > 0) {
+        outstanding += diffDays * DAILY_INTEREST;
+        outstanding = parseFloat(outstanding.toFixed(2));
+        document.getElementById("balance").innerText = outstanding.toFixed(2);
+        lastInterestDate = today;
+        saveData();
+    }
+}
+
+// Add row
+function addRow(date, payment, newOutstanding, save=true) {
+    const table = document.getElementById("historyTable");
+    let row = table.insertRow(0);
+
+    row.dataset.date = date;
+    row.dataset.payment = payment;
+    row.dataset.outstanding = newOutstanding;
+
+    row.insertCell(0).innerText = date;
+    row.insertCell(1).innerText = payment.toFixed(2);
+    row.insertCell(2).innerText = newOutstanding.toFixed(2);
+
+    const actionCell = row.insertCell(3);
+    const deleteBtn = document.createElement("button");
+    deleteBtn.innerText = "Delete";
+    deleteBtn.className = "delete-btn";
+    deleteBtn.onclick = function() { tempDelete(row); };
+    actionCell.appendChild(deleteBtn);
+
+    if (save) saveData();
+}
+
+// Temporary delete with undo
+function tempDelete(row) {
+    row.dataset.tempDeleted = "true";
+
+    const oldData = {
+        date: row.dataset.date,
+        payment: row.dataset.payment,
+        outstanding: row.dataset.outstanding
+    };
+
+    row.innerHTML = "";
+
+    const msgCell = row.insertCell(0);
+    msgCell.colSpan = 3;
+    msgCell.innerText = "Payment temporarily deleted";
+    msgCell.className = "deleted-text";
+
+    const actionCell = row.insertCell(1);
+    const undoBtn = document.createElement("button");
+    undoBtn.innerText = "Undo";
+    undoBtn.className = "undo-btn";
+
+    undoBtn.onclick = function () {
+        row.dataset.tempDeleted = "false";
+        row.innerHTML = "";
+
+        row.dataset.date = oldData.date;
+        row.dataset.payment = oldData.payment;
+        row.dataset.outstanding = oldData.outstanding;
+
+        row.insertCell(0).innerText = oldData.date;
+        row.insertCell(1).innerText = parseFloat(oldData.payment).toFixed(2);
+        row.insertCell(2).innerText = parseFloat(oldData.outstanding).toFixed(2);
+
+        const actionCell2 = row.insertCell(3);
+        const deleteBtn = document.createElement("button");
+        deleteBtn.innerText = "Delete";
+        deleteBtn.className = "delete-btn";
+        deleteBtn.onclick = function () { tempDelete(row); };
+        actionCell2.appendChild(deleteBtn);
+    };
+
+    actionCell.appendChild(undoBtn);
+}
+
+// Make payment
+function makePayment() {
+    applyInterest();
+
+    let paymentInput = document.getElementById("paymentAmount");
+    let payment = parseFloat(paymentInput.value);
+
+    if (isNaN(payment) || payment <= 0) {
+        alert("Please enter a valid payment amount.");
+        return;
+    }
+
+    if (payment > outstanding) payment = outstanding;
+
+    outstanding -= payment;
+    outstanding = parseFloat(outstanding.toFixed(2));
+    document.getElementById("balance").innerText = outstanding.toFixed(2);
+
+    const today = new Date().toLocaleDateString(navigator.language);
+    addRow(today, payment, outstanding);
+
+    paymentInput.value = "";
+
+    if (outstanding === 0) {
+        alert("🎉 Payment Fully Settled!");
+    }
+}
+
+// Reset
+function resetAll() {
+    if (!confirm("Reset all data?")) return;
+
+    outstanding = ORIGINAL_OUTSTANDING;
+    lastInterestDate = null;
+    document.getElementById("balance").innerText = outstanding.toFixed(2);
+
+    document.getElementById("historyTable").innerHTML = "";
+    localStorage.removeItem("uobData");
+}
+
 loadData();
 applyInterest();
 </script>
