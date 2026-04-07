@@ -2,10 +2,125 @@
 <html>
 <head>
     <title>UOB Outstanding Payment</title>
-  
+    <style>
+        body { font-family: Arial; background: #f4f6f9; padding: 30px; }
+        .container { max-width: 600px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 5px 15px rgba(0,0,0,0.1); }
+        h2{text-align:center;}
+        .outstanding { font-size:22px; font-weight:bold; margin-bottom:15px; }
+        input { width:100%; padding:8px; margin-bottom:10px; font-size:16px; box-sizing: border-box; }
+
+        /* Hide number input spinner */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        button {
+            border:none;
+            cursor:pointer;
+            border-radius:5px;
+            margin-top:5px;
+            font-size:12px;
+            padding:5px 10px;
+            color:white;
+        }
+
+        .make-payment-btn { background-color:#d71920; }
+        .make-payment-btn:hover { background-color:#a81418; }
+
+        .delete-btn { background-color:#d71920; }
+        .delete-btn:hover { background-color:#a81418; }
+
+        .undo-btn { background-color:#f39c12; }
+        .undo-btn:hover { background-color:#d68910; }
+
+        .reset-btn { background-color:#555; margin-top:10px; }
+        .reset-btn:hover { background-color:#333; }
+
+        table { width:100%; margin-top:20px; border-collapse:collapse; table-layout: fixed; }
+        table, th, td { border:1px solid #ddd; }
+        th, td { padding:8px; text-align:center; word-wrap:break-word; }
+        th { background-color:#f2f2f2; }
+
+        .deleted-text { color:#888; font-style:italic; text-align:center; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>UOB Outstanding Payment</h2>
+
+    <div class="outstanding">
+        Outstanding: RM <span id="balance">3150.00</span>
+    </div>
+
+    <input type="number" id="paymentAmount" placeholder="Enter Payment Amount" step="0.01">
+    <button class="make-payment-btn" onclick="makePayment()">Make Payment</button>
+    <button class="reset-btn" onclick="resetAll()">Reset</button>
+
+    <table>
+        <thead>
+            <tr>
                 <th>Date</th>
                 <th>Payment (RM)</th>
-            
+                <th>Outstanding After Payment (RM)</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="historyTable"></tbody>
+    </table>
+</div>
+
+<script>
+const DAILY_INTEREST = 1.56;
+const ORIGINAL_OUTSTANDING = 3150.00;
+
+let outstanding = ORIGINAL_OUTSTANDING;
+let lastInterestDate = null;
+
+// Load data
+function loadData() {
+    const savedData = JSON.parse(localStorage.getItem("uobData"));
+    if (savedData) {
+        outstanding = savedData.outstanding;
+        lastInterestDate = new Date(savedData.lastInterestDate);
+        document.getElementById("balance").innerText = outstanding.toFixed(2);
+
+        savedData.history.forEach(item => {
+            addRow(item.date, item.payment, item.outstanding, false);
+        });
+    }
+}
+
+// Save data (ONLY active rows)
+function saveData() {
+    const table = document.getElementById("historyTable");
+    const history = [];
+
+    for (let i = 0; i < table.rows.length; i++) {
+        const r = table.rows[i];
+
+        // Skip temporary deleted rows
+        if (r.dataset.tempDeleted === "true") continue;
+
+        history.push({
+            date: r.dataset.date,
+            payment: parseFloat(r.dataset.payment),
+            outstanding: parseFloat(r.dataset.outstanding)
+        });
+    }
+
+    localStorage.setItem("uobData", JSON.stringify({
+        outstanding: outstanding,
+        lastInterestDate: lastInterestDate,
+        history: history
+    }));
+}
+
 // Interest calculation
 function applyInterest() {
     const today = new Date();
@@ -105,7 +220,31 @@ function makePayment() {
     if (payment > outstanding) payment = outstanding;
 
     outstanding -= payment;
-    outstand
+    outstanding = parseFloat(outstanding.toFixed(2));
+    document.getElementById("balance").innerText = outstanding.toFixed(2);
+
+    const today = new Date().toLocaleDateString(navigator.language);
+    addRow(today, payment, outstanding);
+
+    paymentInput.value = "";
+
+    if (outstanding === 0) {
+        alert("🎉 Payment Fully Settled!");
+    }
+}
+
+// Reset
+function resetAll() {
+    if (!confirm("Reset all data?")) return;
+
+    outstanding = ORIGINAL_OUTSTANDING;
+    lastInterestDate = null;
+    document.getElementById("balance").innerText = outstanding.toFixed(2);
+
+    document.getElementById("historyTable").innerHTML = "";
+    localStorage.removeItem("uobData");
+}
+
 loadData();
 applyInterest();
 </script>
