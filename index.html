@@ -9,10 +9,14 @@
         .outstanding { font-size:22px; font-weight:bold; margin-bottom:15px; }
         input { width:100%; padding:8px; margin-bottom:10px; font-size:16px; box-sizing: border-box; }
 
+        /* Hide number input spinner */
         input[type=number]::-webkit-inner-spin-button,
         input[type=number]::-webkit-outer-spin-button {
             -webkit-appearance: none;
             margin: 0;
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
         }
 
         button {
@@ -31,6 +35,9 @@
         .delete-btn { background-color:#d71920; }
         .delete-btn:hover { background-color:#a81418; }
 
+        .undo-btn { background-color:#f39c12; }
+        .undo-btn:hover { background-color:#d68910; }
+
         .reset-btn { background-color:#555; margin-top:10px; }
         .reset-btn:hover { background-color:#333; }
 
@@ -38,11 +45,9 @@
         table, th, td { border:1px solid #ddd; }
         th, td { padding:8px; text-align:center; word-wrap:break-word; }
         th { background-color:#f2f2f2; }
-    </style>
 
-    <!-- 🔥 Firebase CDN -->
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+        .deleted-text { color:#888; font-style:italic; text-align:center; }
+    </style>
 </head>
 <body>
 
@@ -71,50 +76,35 @@
 </div>
 
 <script>
-// 🔥 REPLACE THIS WITH YOUR FIREBASE CONFIG
-const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "YOUR_DOMAIN",
-  databaseURL: "YOUR_DB_URL",
-  projectId: "YOUR_PROJECT_ID",
-};
-
-// Init Firebase
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-
-// ===== YOUR LOGIC =====
 const DAILY_INTEREST = 1.56;
 const ORIGINAL_OUTSTANDING = 3150.00;
 
 let outstanding = ORIGINAL_OUTSTANDING;
 let lastInterestDate = null;
 
-// LOAD FROM FIREBASE
+// Load data
 function loadData() {
-    db.ref("uobData").once("value", snapshot => {
-        const data = snapshot.val();
-        if (!data) return;
-
-        outstanding = data.outstanding;
-        lastInterestDate = data.lastInterestDate ? new Date(data.lastInterestDate) : null;
-
+    const savedData = JSON.parse(localStorage.getItem("uobData"));
+    if (savedData) {
+        outstanding = savedData.outstanding;
+        lastInterestDate = new Date(savedData.lastInterestDate);
         document.getElementById("balance").innerText = outstanding.toFixed(2);
-        document.getElementById("historyTable").innerHTML = "";
 
-        data.history.forEach(item => {
+        savedData.history.forEach(item => {
             addRow(item.date, item.payment, item.outstanding, false);
         });
-    });
+    }
 }
 
-// SAVE TO FIREBASE
+// Save data (ONLY active rows)
 function saveData() {
     const table = document.getElementById("historyTable");
     const history = [];
 
     for (let i = 0; i < table.rows.length; i++) {
         const r = table.rows[i];
+
+        // Skip temporary deleted rows
         if (r.dataset.tempDeleted === "true") continue;
 
         history.push({
@@ -124,14 +114,14 @@ function saveData() {
         });
     }
 
-    db.ref("uobData").set({
+    localStorage.setItem("uobData", JSON.stringify({
         outstanding: outstanding,
         lastInterestDate: lastInterestDate,
         history: history
-    });
+    }));
 }
 
-// INTEREST
+// Interest calculation
 function applyInterest() {
     const today = new Date();
     if (!lastInterestDate) lastInterestDate = today;
@@ -147,7 +137,7 @@ function applyInterest() {
     }
 }
 
-// ADD ROW
+// Add row
 function addRow(date, payment, newOutstanding, save=true) {
     const table = document.getElementById("historyTable");
     let row = table.insertRow(0);
@@ -164,19 +154,58 @@ function addRow(date, payment, newOutstanding, save=true) {
     const deleteBtn = document.createElement("button");
     deleteBtn.innerText = "Delete";
     deleteBtn.className = "delete-btn";
-    deleteBtn.onclick = function() { deleteRow(row); };
+    deleteBtn.onclick = function() { tempDelete(row); };
     actionCell.appendChild(deleteBtn);
 
     if (save) saveData();
 }
 
-// DELETE (direct remove)
-function deleteRow(row) {
-    row.remove();
-    saveData();
+// Temporary delete with undo
+function tempDelete(row) {
+    row.dataset.tempDeleted = "true";
+
+    const oldData = {
+        date: row.dataset.date,
+        payment: row.dataset.payment,
+        outstanding: row.dataset.outstanding
+    };
+
+    row.innerHTML = "";
+
+    const msgCell = row.insertCell(0);
+    msgCell.colSpan = 3;
+    msgCell.innerText = "Payment temporarily deleted";
+    msgCell.className = "deleted-text";
+
+    const actionCell = row.insertCell(1);
+    const undoBtn = document.createElement("button");
+    undoBtn.innerText = "Undo";
+    undoBtn.className = "undo-btn";
+
+    undoBtn.onclick = function () {
+        row.dataset.tempDeleted = "false";
+        row.innerHTML = "";
+
+        row.dataset.date = oldData.date;
+        row.dataset.payment = oldData.payment;
+        row.dataset.outstanding = oldData.outstanding;
+
+        row.insertCell(0).innerText = oldData.date;
+        row.insertCell(1).innerText = parseFloat(oldData.payment).toFixed(2);
+        row.insertCell(2).innerText = parseFloat(oldData.outstanding).toFixed(2);
+
+        const actionCell2 = row.insertCell(3);
+        const deleteBtn = document.createElement("button");
+        deleteBtn.innerText = "Delete";
+        deleteBtn.className = "delete-btn";
+        deleteBtn.onclick = function () { tempDelete(row); };
+        actionCell2.appendChild(deleteBtn);
+    };
+
+    actionCell.appendChild(undoBtn);
 }
 
-// PAYMENT
+// Make payment
 function makePayment() {
     applyInterest();
 
@@ -184,7 +213,7 @@ function makePayment() {
     let payment = parseFloat(paymentInput.value);
 
     if (isNaN(payment) || payment <= 0) {
-        alert("Enter valid amount");
+        alert("Please enter a valid payment amount.");
         return;
     }
 
@@ -192,34 +221,32 @@ function makePayment() {
 
     outstanding -= payment;
     outstanding = parseFloat(outstanding.toFixed(2));
-
     document.getElementById("balance").innerText = outstanding.toFixed(2);
 
-    const today = new Date().toLocaleDateString();
+    const today = new Date().toLocaleDateString(navigator.language);
     addRow(today, payment, outstanding);
 
     paymentInput.value = "";
 
     if (outstanding === 0) {
-        alert("🎉 Fully Settled!");
+        alert("🎉 Payment Fully Settled!");
     }
 }
 
-// RESET
+// Reset
 function resetAll() {
     if (!confirm("Reset all data?")) return;
-
-    db.ref("uobData").remove();
 
     outstanding = ORIGINAL_OUTSTANDING;
     lastInterestDate = null;
     document.getElementById("balance").innerText = outstanding.toFixed(2);
+
     document.getElementById("historyTable").innerHTML = "";
+    localStorage.removeItem("uobData");
 }
 
-// INIT
 loadData();
-setTimeout(applyInterest, 1000);
+applyInterest();
 </script>
 
 </body>
