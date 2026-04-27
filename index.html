@@ -70,24 +70,12 @@ background:#a81418;
 background:#d71920;
 }
 
-.delete-btn:hover{
-background:#a81418;
-}
-
 .undo-btn{
 background:#f39c12;
 }
 
-.undo-btn:hover{
-background:#d68910;
-}
-
 .reset-btn{
 background:#555;
-}
-
-.reset-btn:hover{
-background:#333;
 }
 
 table{
@@ -111,12 +99,13 @@ th{
 background:#f2f2f2;
 }
 
-.deleted-msg{
+.deleted-text{
 color:#888;
 font-style:italic;
-margin-right:8px;
+text-align:center;
 }
 </style>
+
 </head>
 <body>
 
@@ -149,7 +138,6 @@ onclick="resetAll()"
 >
 Reset
 </button>
-
 
 <table>
 <thead>
@@ -186,23 +174,35 @@ from
 
 
 
-/* PUT YOUR FIREBASE CONFIG HERE */
+/* FIREBASE CONFIG */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCMmGXhYMxtUpAPCJH0pfvlmCDyxvDYnqE",
-  authDomain: "oplord-35fc0.firebaseapp.com",
-  projectId: "oplord-35fc0",
-  storageBucket: "oplord-35fc0.firebasestorage.app",
-  messagingSenderId: "558480615816",
-  appId: "1:558480615816:web:e3283f7fdc1adce8e6b23d",
-  measurementId: "G-HPJ1G0BGGT"
+
+apiKey:"YOUR_API_KEY",
+
+authDomain:
+"YOUR_PROJECT.firebaseapp.com",
+
+projectId:
+"YOUR_PROJECT_ID",
+
+storageBucket:
+"YOUR_PROJECT.appspot.com",
+
+messagingSenderId:
+"YOUR_ID",
+
+appId:
+"YOUR_APP_ID"
+
 };
 
 
-const app =
+
+const app=
 initializeApp(firebaseConfig);
 
-const db =
+const db=
 getFirestore(app);
 
 const APP_DOC=
@@ -242,37 +242,27 @@ i>=0;
 i--
 ){
 
-const item=history[i];
+let item=history[i];
 
 let row=
 table.insertRow();
 
-row.insertCell(0)
-.innerText=item.date;
-
-row.insertCell(1)
-.innerText=
-Number(
-item.payment
-).toFixed(2);
-
-row.insertCell(2)
-.innerText=
-Number(
-item.outstanding
-).toFixed(2);
-
-
-let action=
-row.insertCell(3);
-
 
 if(item.deleted){
 
-action.innerHTML=
-`<span class='deleted-msg'>
-The payment is deleted
-</span>`;
+let msg=row.insertCell(0);
+
+msg.colSpan=3;
+
+msg.innerText=
+"The payment is deleted";
+
+msg.className=
+"deleted-text";
+
+
+let action=
+row.insertCell(1);
 
 
 let undo=
@@ -299,6 +289,21 @@ undo
 
 else{
 
+row.insertCell(0)
+.innerText=item.date;
+
+row.insertCell(1)
+.innerText=
+item.payment.toFixed(2);
+
+row.insertCell(2)
+.innerText=
+item.outstanding.toFixed(2);
+
+
+let action=
+row.insertCell(3);
+
 let del=
 document.createElement(
 "button"
@@ -323,7 +328,6 @@ del
 
 }
 
-
 document.getElementById(
 "balance"
 ).innerText=
@@ -333,8 +337,7 @@ outstanding.toFixed(2);
 
 
 
-/* FIREBASE SAVE */
-
+/* SAVE TO FIREBASE */
 async function saveData(){
 
 await setDoc(
@@ -360,8 +363,7 @@ history
 
 
 
-/* FIREBASE LOAD */
-
+/* LOAD */
 async function loadData(){
 
 const snap=
@@ -373,7 +375,7 @@ if(
 snap.exists()
 ){
 
-const data=
+let data=
 snap.data();
 
 outstanding=
@@ -403,8 +405,7 @@ renderHistory();
 
 
 
-/* DAILY INTEREST */
-
+/* INTEREST */
 function applyInterest(){
 
 const today=
@@ -428,7 +429,6 @@ lastInterestDate
 (1000*60*60*24)
 );
 
-
 if(
 diffDays>0
 ){
@@ -439,8 +439,7 @@ DAILY_INTEREST;
 
 outstanding=
 parseFloat(
-outstanding
-.toFixed(2)
+outstanding.toFixed(2)
 );
 
 lastInterestDate=
@@ -456,12 +455,26 @@ saveData();
 
 
 
-/* DELETE */
+/* DELETE PAYMENT */
 window.tempDelete=
 async function(index){
 
+let payment=
+history[index]
+.payment;
+
 history[index]
 .deleted=true;
+
+
+/* reverse payment */
+outstanding+=
+payment;
+
+outstanding=
+parseFloat(
+outstanding.toFixed(2)
+);
 
 renderHistory();
 
@@ -475,8 +488,22 @@ await saveData();
 window.undoDelete=
 async function(index){
 
+let payment=
+history[index]
+.payment;
+
 history[index]
 .deleted=false;
+
+
+/* reapply payment */
+outstanding-=
+payment;
+
+outstanding=
+parseFloat(
+outstanding.toFixed(2)
+);
 
 renderHistory();
 
@@ -486,7 +513,7 @@ await saveData();
 
 
 
-/* PAYMENT */
+/* MAKE PAYMENT */
 window.makePayment=
 async function(){
 
@@ -506,7 +533,7 @@ isNaN(payment)
 payment<=0
 ){
 alert(
-"Please enter valid payment."
+"Enter valid payment."
 );
 return;
 }
@@ -519,16 +546,13 @@ payment=
 outstanding;
 }
 
-
 outstanding-=
 payment;
 
 outstanding=
 parseFloat(
-outstanding
-.toFixed(2)
+outstanding.toFixed(2)
 );
-
 
 const today=
 new Date()
@@ -565,7 +589,7 @@ if(
 outstanding===0
 ){
 alert(
-"🎉 Payment Fully Settled!"
+"🎉 Fully Settled!"
 );
 }
 
@@ -582,7 +606,6 @@ if(
 "Reset all data?"
 )
 ) return;
-
 
 outstanding=
 ORIGINAL_OUTSTANDING;
