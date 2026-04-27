@@ -3,101 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <title>UOB Outstanding Payment</title>
+
 <style>
-body { font-family: Arial; background:#f4f6f9; padding:30px; }
+body{
+font-family:Arial;
+background:#f4f6f9;
+padding:30px;
+}
+
 .container{
- max-width:600px; margin:auto; background:white;
- padding:20px; border-radius:10px;
- box-shadow:0 5px 15px rgba(0,0,0,0.1);
+max-width:700px;
+margin:auto;
+background:white;
+padding:20px;
+border-radius:10px;
+box-shadow:0 5px 15px rgba(0,0,0,.1);
 }
-h2{text-align:center;}
+
+h2{
+text-align:center;
+}
+
 .outstanding{
- font-size:22px;
- font-weight:bold;
- margin-bottom:15px;
+font-size:22px;
+font-weight:bold;
+margin-bottom:15px;
 }
+
 input{
- width:100%;
- padding:8px;
- margin-bottom:10px;
- font-size:16px;
- box-sizing:border-box;
+width:100%;
+padding:10px;
+margin-bottom:10px;
+font-size:16px;
+box-sizing:border-box;
 }
 
 input[type=number]::-webkit-inner-spin-button,
 input[type=number]::-webkit-outer-spin-button{
- -webkit-appearance:none;
- margin:0;
+-webkit-appearance:none;
+margin:0;
 }
-input[type=number]{ -moz-appearance:textfield; }
+
+input[type=number]{
+-moz-appearance:textfield;
+}
 
 button{
- border:none;
- cursor:pointer;
- border-radius:5px;
- margin-top:5px;
- font-size:12px;
- padding:5px 10px;
- color:white;
+border:none;
+cursor:pointer;
+border-radius:5px;
+font-size:12px;
+padding:6px 12px;
+color:white;
+margin:5px 3px;
 }
 
-.make-payment-btn{background:#d71920;}
-.make-payment-btn:hover{background:#a81418;}
+.make-payment-btn{
+background:#d71920;
+}
 
-.delete-btn{background:#d71920;}
-.delete-btn:hover{background:#a81418;}
+.make-payment-btn:hover{
+background:#a81418;
+}
 
-.undo-btn{background:#f39c12;}
-.undo-btn:hover{background:#d68910;}
+.delete-btn{
+background:#d71920;
+}
 
-.reset-btn{background:#555;}
-.reset-btn:hover{background:#333;}
+.delete-btn:hover{
+background:#a81418;
+}
+
+.undo-btn{
+background:#f39c12;
+}
+
+.undo-btn:hover{
+background:#d68910;
+}
+
+.reset-btn{
+background:#555;
+}
+
+.reset-btn:hover{
+background:#333;
+}
 
 table{
- width:100%;
- margin-top:20px;
- border-collapse:collapse;
- table-layout:fixed;
+width:100%;
+margin-top:20px;
+border-collapse:collapse;
+table-layout:fixed;
 }
 
 table,th,td{
- border:1px solid #ddd;
+border:1px solid #ddd;
 }
 
 th,td{
- padding:8px;
- text-align:center;
- word-wrap:break-word;
+padding:8px;
+text-align:center;
+word-wrap:break-word;
 }
 
 th{
- background:#f2f2f2;
+background:#f2f2f2;
 }
 
-.deleted-text{
- color:#888;
- font-style:italic;
- text-align:center;
-}
-
-.loading{
- text-align:center;
- padding:10px;
- font-style:italic;
+.deleted-msg{
+color:#888;
+font-style:italic;
+margin-right:8px;
 }
 </style>
 </head>
 <body>
 
 <div class="container">
+
 <h2>UOB Outstanding Payment</h2>
 
 <div class="outstanding">
-Outstanding: RM <span id="balance">3150.00</span>
-</div>
-
-<div id="status" class="loading">
-Loading saved data...
+Outstanding:
+RM <span id="balance">3150.00</span>
 </div>
 
 <input
@@ -105,7 +134,7 @@ type="number"
 id="paymentAmount"
 placeholder="Enter Payment Amount"
 step="0.01"
-/>
+>
 
 <button
 class="make-payment-btn"
@@ -121,6 +150,7 @@ onclick="resetAll()"
 Reset
 </button>
 
+
 <table>
 <thead>
 <tr>
@@ -131,16 +161,19 @@ Reset
 </tr>
 </thead>
 
-<tbody id="historyTable"></tbody>
+<tbody id="historyTable">
+</tbody>
 </table>
 
 </div>
 
 
+
 <script type="module">
 
 import { initializeApp }
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 
 import {
 getFirestore,
@@ -148,176 +181,285 @@ doc,
 getDoc,
 setDoc
 }
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+from
+"https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 
-/* =========================
-PUT YOUR FIREBASE CONFIG HERE
-========================= */
+
+/* PUT YOUR FIREBASE CONFIG HERE */
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCMmGXhYMxtUpAPCJH0pfvlmCDyxvDYnqE",
-  authDomain: "oplord-35fc0.firebaseapp.com",
-  projectId: "oplord-35fc0",
-  storageBucket: "oplord-35fc0.firebasestorage.app",
-  messagingSenderId: "558480615816",
-  appId: "1:558480615816:web:e3283f7fdc1adce8e6b23d",
-  measurementId: "G-HPJ1G0BGGT"
+
+apiKey:"YOUR_API_KEY",
+
+authDomain:
+"YOUR_PROJECT.firebaseapp.com",
+
+projectId:
+"YOUR_PROJECT_ID",
+
+storageBucket:
+"YOUR_PROJECT.appspot.com",
+
+messagingSenderId:
+"YOUR_ID",
+
+appId:
+"YOUR_APP_ID"
+
 };
 
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
 
-/* one document stores all app data */
-const APP_DOC = doc(
+
+const app =
+initializeApp(firebaseConfig);
+
+const db =
+getFirestore(app);
+
+const APP_DOC=
+doc(
 db,
 "uob_app",
 "main_data"
 );
 
 
-/* =========================
-APP LOGIC
-========================= */
 
-const DAILY_INTEREST = 1.56;
-const ORIGINAL_OUTSTANDING = 3150.00;
+const DAILY_INTEREST=1.56;
+const ORIGINAL_OUTSTANDING=3150.00;
 
-let outstanding = ORIGINAL_OUTSTANDING;
-let lastInterestDate = null;
-let history = [];
+let outstanding=
+ORIGINAL_OUTSTANDING;
+
+let lastInterestDate=null;
+
+let history=[];
 
 
-/* render rows */
+
 function renderHistory(){
 
-const table =
-document.getElementById("historyTable");
+const table=
+document.getElementById(
+"historyTable"
+);
 
 table.innerHTML="";
 
-for(let i=history.length-1;i>=0;i--){
 
-const item = history[i];
+for(
+let i=history.length-1;
+i>=0;
+i--
+){
 
-let row = table.insertRow();
+const item=history[i];
 
-row.dataset.index=i;
+let row=
+table.insertRow();
 
-row.insertCell(0).innerText=item.date;
-row.insertCell(1).innerText=
-Number(item.payment).toFixed(2);
+row.insertCell(0)
+.innerText=item.date;
 
-row.insertCell(2).innerText=
-Number(item.outstanding).toFixed(2);
+row.insertCell(1)
+.innerText=
+Number(
+item.payment
+).toFixed(2);
 
-const action=row.insertCell(3);
+row.insertCell(2)
+.innerText=
+Number(
+item.outstanding
+).toFixed(2);
 
-const del=document.createElement("button");
-del.innerText="Delete";
-del.className="delete-btn";
 
-del.onclick=function(){
+let action=
+row.insertCell(3);
+
+
+if(item.deleted){
+
+action.innerHTML=
+`<span class='deleted-msg'>
+The payment is deleted
+</span>`;
+
+
+let undo=
+document.createElement(
+"button"
+);
+
+undo.innerText=
+"Undo";
+
+undo.className=
+"undo-btn";
+
+undo.onclick=
+function(){
+undoDelete(i);
+};
+
+action.appendChild(
+undo
+);
+
+}
+
+else{
+
+let del=
+document.createElement(
+"button"
+);
+
+del.innerText=
+"Delete";
+
+del.className=
+"delete-btn";
+
+del.onclick=
+function(){
 tempDelete(i);
 };
 
-action.appendChild(del);
+action.appendChild(
+del
+);
 
 }
 
-document.getElementById("balance")
-.innerText=outstanding.toFixed(2);
+}
+
+
+document.getElementById(
+"balance"
+).innerText=
+outstanding.toFixed(2);
 
 }
 
 
-/* SAVE TO FIREBASE */
+
+/* FIREBASE SAVE */
+
 async function saveData(){
 
 await setDoc(
 APP_DOC,
 {
-outstanding:outstanding,
-lastInterestDate:lastInterestDate?
-lastInterestDate.toISOString():null,
-history:history
+outstanding:
+outstanding,
+
+lastInterestDate:
+lastInterestDate
+?
+lastInterestDate
+.toISOString()
+:
+null,
+
+history:
+history
 }
 );
 
 }
 
 
-/* LOAD FROM FIREBASE */
+
+/* FIREBASE LOAD */
+
 async function loadData(){
 
-try{
+const snap=
+await getDoc(
+APP_DOC
+);
 
-const snap = await getDoc(APP_DOC);
+if(
+snap.exists()
+){
 
-if(snap.exists()){
+const data=
+snap.data();
 
-const data = snap.data();
-
-outstanding =
-data.outstanding ??
+outstanding=
+data.outstanding
+??
 ORIGINAL_OUTSTANDING;
 
-lastInterestDate =
-data.lastInterestDate ?
-new Date(data.lastInterestDate)
-:null;
+lastInterestDate=
+data.lastInterestDate
+?
+new Date(
+data.lastInterestDate
+)
+:
+null;
 
-history=data.history || [];
+history=
+data.history
+||
+[];
 
 }
 
 renderHistory();
 
-document
-.getElementById("status")
-.style.display="none";
-
-}
-catch(e){
-console.error(e);
-
-document.getElementById("status")
-.innerText=
-"Could not load cloud data.";
-}
-
 }
 
 
-/* interest */
+
+/* DAILY INTEREST */
+
 function applyInterest(){
 
-const today=new Date();
+const today=
+new Date();
 
-if(!lastInterestDate){
-lastInterestDate=today;
+if(
+!lastInterestDate
+){
+lastInterestDate=
+today;
 return;
 }
 
-const diffDays=Math.floor(
-(today-new Date(lastInterestDate))
+const diffDays=
+Math.floor(
+(today-
+new Date(
+lastInterestDate
+))
 /
 (1000*60*60*24)
 );
 
-if(diffDays>0){
+
+if(
+diffDays>0
+){
 
 outstanding+=
-diffDays*DAILY_INTEREST;
+diffDays*
+DAILY_INTEREST;
 
 outstanding=
 parseFloat(
-outstanding.toFixed(2)
+outstanding
+.toFixed(2)
 );
 
-lastInterestDate=today;
+lastInterestDate=
+today;
 
 renderHistory();
+
 saveData();
 
 }
@@ -325,41 +467,47 @@ saveData();
 }
 
 
-/* delete payment */
-async function tempDelete(index){
 
-if(
-!confirm(
-"Delete this payment record?"
-)
-) return;
+/* DELETE */
+window.tempDelete=
+async function(index){
 
-history.splice(index,1);
-
-if(history.length>0){
-outstanding=
-history[history.length-1]
-.outstanding;
-}else{
-outstanding=
-ORIGINAL_OUTSTANDING;
-}
+history[index]
+.deleted=true;
 
 renderHistory();
 
 await saveData();
 
-}
+};
 
 
-/* make payment */
-window.makePayment =
+
+/* UNDO */
+window.undoDelete=
+async function(index){
+
+history[index]
+.deleted=false;
+
+renderHistory();
+
+await saveData();
+
+};
+
+
+
+/* PAYMENT */
+window.makePayment=
 async function(){
 
 applyInterest();
 
-let payment=parseFloat(
-document.getElementById(
+let payment=
+parseFloat(
+document
+.getElementById(
 "paymentAmount"
 ).value
 );
@@ -375,16 +523,24 @@ alert(
 return;
 }
 
-if(payment>outstanding){
-payment=outstanding;
+
+if(
+payment>outstanding
+){
+payment=
+outstanding;
 }
 
-outstanding-=payment;
+
+outstanding-=
+payment;
 
 outstanding=
 parseFloat(
-outstanding.toFixed(2)
+outstanding
+.toFixed(2)
 );
+
 
 const today=
 new Date()
@@ -392,21 +548,34 @@ new Date()
 navigator.language
 );
 
+
 history.push({
+
 date:today,
+
 payment:payment,
-outstanding:outstanding
+
+outstanding:
+outstanding,
+
+deleted:false
+
 });
+
 
 renderHistory();
 
 await saveData();
 
-document.getElementById(
+document
+.getElementById(
 "paymentAmount"
 ).value="";
 
-if(outstanding===0){
+
+if(
+outstanding===0
+){
 alert(
 "🎉 Payment Fully Settled!"
 );
@@ -415,8 +584,9 @@ alert(
 };
 
 
-/* reset */
-window.resetAll =
+
+/* RESET */
+window.resetAll=
 async function(){
 
 if(
@@ -425,10 +595,12 @@ if(
 )
 ) return;
 
+
 outstanding=
 ORIGINAL_OUTSTANDING;
 
-lastInterestDate=null;
+lastInterestDate=
+null;
 
 history=[];
 
@@ -439,8 +611,9 @@ await saveData();
 };
 
 
-/* START */
+
 await loadData();
+
 applyInterest();
 
 </script>
